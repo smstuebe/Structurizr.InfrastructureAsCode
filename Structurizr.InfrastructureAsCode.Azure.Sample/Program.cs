@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using Microsoft.Extensions.Configuration;
-using Structurizr.Client;
+using Structurizr.Api;
 using Structurizr.InfrastructureAsCode.Azure.InfrastructureRendering;
 using Structurizr.InfrastructureAsCode.Azure.Sample.Model;
 using Structurizr.InfrastructureAsCode.InfrastructureRendering;
@@ -9,25 +9,13 @@ using Structurizr.InfrastructureAsCode.Policies;
 
 namespace Structurizr.InfrastructureAsCode.Azure.Sample
 {
+
     public class Program
     {
         public static void Main(string[] args)
         {
-            if (args.Length == 2 && args[0] == "infrastructure")
-            {
-                RenderInfrastructure(args[1]);
-            }
-            else if (args.Length == 1 && args[0] == "structurizr")
-            {
-                UploadToStructurizr();
-            }
-            else
-            {
-                Console.WriteLine("You should run this with one of the following parameters:");
-                Console.WriteLine("1) infrastructure <environment>");
-                Console.WriteLine("2) structurizr");
-                Console.ReadLine();
-            }
+            UploadToStructurizr();
+            RenderInfrastructure("dev");
         }
 
         private static void UploadToStructurizr()
@@ -46,12 +34,12 @@ namespace Structurizr.InfrastructureAsCode.Azure.Sample
         {
             var configuration = Configuration();
             var environment = Environment(environmentName, configuration);
-            var shop = InfrastructureModel(environment);
+            var monkeyFactory = InfrastructureModel(environment);
 
             var renderer = Renderer(environment, configuration);
             try
             {
-                renderer.Render(shop).Wait();
+                renderer.Render(monkeyFactory).Wait();
             }
             catch (AggregateException ex)
             {
@@ -89,13 +77,15 @@ namespace Structurizr.InfrastructureAsCode.Azure.Sample
 
             return new InfrastructureRendererBuilder<InfrastructureToResourcesRenderer>()
                 .In(environment)
-                .UsingResourceGroupPerEnvironment(e => $"shop-{e.Name}")
+                .Using<IAzureDeploymentTemplateWriter>(new AzureDeploymentTemplateWriter("dev-4"))
+                .UsingResourceGroupPerEnvironment(e => $"monkey-{e.Name}")
                 .UsingLocation("westeurope")
                 .Using<IPasswordPolicy, RandomPasswordPolicy>()
                 .UsingCredentials(
                     new AzureSubscriptionCredentials(
                     configuration["Azure:ClientId"],
-                    configuration["Azure:ClientSecret"],
+                    configuration["Azure:ApplicationId"],
+                    configuration["Azure:Thumbprint"],
                     configuration["Azure:TenantId"],
                     configuration["Azure:SubscriptionId"]))
                 .Build();
@@ -105,36 +95,43 @@ namespace Structurizr.InfrastructureAsCode.Azure.Sample
         {
             var workspace = CreateWorkspace();
 
-            var shop = new Shop(workspace, environment);
+            var monkeyFactory = new MonkeyFactory(workspace, environment);
 
-            var contextView = workspace.Views.CreateSystemContextView(shop.System, "Shop context view", "Overview over the shop system");
+            var contextView = workspace.Views.CreateSystemContextView(monkeyFactory.System, "Monkey factory context view", "Overview over the monkey factory system");
             contextView.AddAllSoftwareSystems();
             contextView.AddAllPeople();
 
-            var containerView = workspace.Views.CreateContainerView(shop.System, "Shop Container View", "Overview over the shop system architecture");
+            var containerView = workspace.Views.CreateContainerView(monkeyFactory.System, "Monkey factory Container View", "Overview over the monkey factory system architecture");
+
             containerView.AddAllContainers();
             containerView.AddAllPeople();
+
+            foreach (var systemContainer in monkeyFactory.System.Containers)
+            {
+                containerView.AddNearestNeighbours(systemContainer);
+            }
 
             return workspace;
         }
 
-        private static Shop InfrastructureModel(IAzureInfrastructureEnvironment environment)
+        private static MonkeyFactory InfrastructureModel(IAzureInfrastructureEnvironment environment)
         {
-            return new Shop(CreateWorkspace(), environment);
+            return new MonkeyFactory(CreateWorkspace(), environment);
         }
 
         private static Workspace CreateWorkspace()
         {
-            var workspace = new Workspace("Shop architecture", "Some generic web implemented with Azure cloud infrastructure");
+            var workspace = new Workspace("Monkey factory architecture", "");
+            workspace.Views.Configuration.Styles.Add(new ElementStyle(Tags.Person) { Shape = Shape.Person });
             return workspace;
         }
 
         private static IConfigurationRoot Configuration()
         {
             return new ConfigurationBuilder().AddJsonFile(
-                Path.Combine("appsettings.json.user"),
-                optional: false,
-                reloadOnChange: false)
+                    Path.Combine("appsettings.json.user"),
+                    optional: false,
+                    reloadOnChange: false)
                 .Build();
         }
     }

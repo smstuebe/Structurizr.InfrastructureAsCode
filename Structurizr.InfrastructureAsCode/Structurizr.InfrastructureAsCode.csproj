@@ -8,7 +8,7 @@
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <Description />
-    <Version>1.0.1</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Structurizr.Core" Version="0.5.1" />
+    <PackageReference Include="Structurizr.Core" Version="0.6.0" />
   </ItemGroup>
 
 </Project>

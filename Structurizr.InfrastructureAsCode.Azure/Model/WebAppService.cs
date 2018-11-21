@@ -6,8 +6,6 @@ namespace Structurizr.InfrastructureAsCode.Azure.Model
 {
     public class WebAppService : AppService, IHttpsConnectionSource
     {
-        public WebAppServiceUrl Url => new WebAppServiceUrl(this);
-
         public string EnvironmentInvariantName { get; set; }
 
         IEnumerable<KeyValuePair<string, IConfigurationValue>> IHttpsConnectionSource.ConnectionInformation()
@@ -17,19 +15,6 @@ namespace Structurizr.InfrastructureAsCode.Azure.Model
                 throw new InvalidOperationException("You have to set the EnvironmentInvariantName in order to use this as a source of connections");
             }
             yield return new KeyValuePair<string, IConfigurationValue>(EnvironmentInvariantName + "-url", Url);
-        }
-    }
-
-   
-
-    public class WebAppServiceUrl : ConfigurationValue
-    {
-        public WebAppService AppService { get; }
-        public override bool ShouldBeStoredSecure => false;
-
-        public WebAppServiceUrl(WebAppService appService)
-        {
-            AppService = appService;
         }
     }
 }

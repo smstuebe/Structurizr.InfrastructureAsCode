@@ -11,12 +11,10 @@ using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Models;
 using Moq;
 using Structurizr.InfrastructureAsCode.Azure.ARM;
-using Structurizr.InfrastructureAsCode.Azure.ARM.Configuration;
 using Structurizr.InfrastructureAsCode.Azure.InfrastructureRendering;
 using Structurizr.InfrastructureAsCode.Azure.Model;
 using Structurizr.InfrastructureAsCode.Azure.Tests.Data;
 using Structurizr.InfrastructureAsCode.InfrastructureRendering;
-using Structurizr.InfrastructureAsCode.InfrastructureRendering.Configuration;
 using TinyIoC;
 using Xunit;
 
@@ -61,64 +59,6 @@ namespace Structurizr.InfrastructureAsCode.Azure.Tests
             azure.Verify(a => a.AppServices.ResourceManager.Deployments.Define(It.IsAny<string>()).WithExistingResourceGroup("Sample"), Times.Once);
             azure.Verify(a => a.AppServices.ResourceManager.Deployments.Define(It.IsAny<string>()).WithExistingResourceGroup("Sample API"), Times.Once);
 
-        }
-
-
-        [Fact]
-        public async Task ShouldNotConfigureAnythingWhenHavingNoAppropriateConfigurationResolver()
-        {
-            var webApps = new List<Mock<IWebApp>>();
-            var azure = GetAzure();
-
-            SetupWebApp(azure, mock => webApps.Add(mock));
-
-            var renderer = GivenARenderer(azure.Object);
-
-            await WhenRendering(renderer);
-
-            Assert.Equal(2, webApps.Count);
-            foreach (var webApp in webApps)
-            {
-                webApp.Verify(a => a.Update(), Times.Never);
-            }
-        }
-
-
-        [Fact]
-        public async Task ShouldConfigureEverythingWhenHavingAppropriateConfigurationResolvers()
-        {
-            var webApps = new List<Mock<IWebApp>>();
-            var azure = GetAzure();
-
-            SetupWebApp(azure, mock =>
-            {
-                webApps.Add(mock);
-                SetupWebAppUpdate(mock);
-            });
-
-            var renderer = GivenARenderer(azure.Object,
-                ioc: WithConfigurationResolvers(WithRenderers(new TinyIoCContainer())));
-
-            await WhenRendering(renderer);
-
-            Assert.Equal(2, webApps.Count);
-            foreach (var webApp in webApps)
-            {
-                if (webApp.Object.Name == "sampleapi")
-                {
-                    webApp.Verify(a => a.Update(), Times.Never);
-                }
-                else if (webApp.Object.Name == "sample")
-                {
-                    webApp.Verify(a => a.Update(), Times.Once);
-                    var expectedSettings = new Dictionary<string, string> {{"apiUrl", "sampleapi.azure.com"}};
-                    webApp.Verify(a => a.Update().WithAppSettings(expectedSettings), Times.Once);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Unkown web app");
-                }
-            }
         }
 
         private InfrastructureToResourcesRenderer GivenARenderer(
@@ -172,12 +112,6 @@ namespace Structurizr.InfrastructureAsCode.Azure.Tests
         private TinyIoCContainer WithRenderers(TinyIoCContainer ioc)
         {
             ioc.Register<AzureResourceRenderer<WebAppService>, WebAppServiceRenderer>();
-            return ioc;
-        }
-
-        private TinyIoCContainer WithConfigurationResolvers(TinyIoCContainer ioc)
-        {
-            ioc.Register<IConfigurationValueResolver<WebAppServiceUrl>, WebAppServiceUrlResolver>();
             return ioc;
         }
 
